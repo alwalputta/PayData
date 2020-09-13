@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="ASCII"?>
+<wdnm:Diagram xmlns:wdnm="http://workday.com/studio/editors/notation">
+  <element href="assembly.xml#WorkdayAssembly"/>
+  <visualProperties x="1438" y="624">
+    <element href="assembly.xml#AttachOutputDocument"/>
+  </visualProperties>
+  <visualProperties x="432" y="624">
+    <element href="assembly.xml#ProcessIndividualEmployee"/>
+  </visualProperties>
+  <visualProperties x="903" y="624">
+    <element href="assembly.xml#StoreOutput"/>
+  </visualProperties>
+  <visualProperties x="220" y="624">
+    <element href="assembly.xml#SplitEmployees"/>
+  </visualProperties>
+  <visualProperties x="673" y="624">
+    <element href="assembly.xml#AggregateEmployeeOTP"/>
+  </visualProperties>
+  <visualProperties x="58" y="374">
+    <element href="assembly.xml#StartHere"/>
+  </visualProperties>
+  <visualProperties x="220" y="374">
+    <element href="assembly.xml#SetupAndRetrieveDocument"/>
+  </visualProperties>
+  <visualProperties x="58" y="892">
+    <element href="assembly.xml#//@beans/@mixed.1/@mixed.15"/>
+  </visualProperties>
+  <visualProperties x="220" y="892">
+    <element href="assembly.xml#ReportErrorAsCritical"/>
+  </visualProperties>
+  <decorations x="36" y="16" width="-1" height="-1" font="Segoe UI|18|1" type="TEXT" text="Pay Data Integration"/>
+  <decorations x="59" y="62" width="1256" height="230" font="Segoe UI|9|0" type="TEXT" text="This integration demonstrates how to use Workday Studio to convert the Payroll Interface output file into a CSV format. &#xD;&#xA;&#xD;&#xA;The integration accepts a single launch parameter as input. This launch parameter is defined on the StartHere Workday-In transport. The ValidateLaunchParams step reports an error if this parameter is not supplied with a value.&#xD;&#xA;&#xD;&#xA;The SetDocumentParams extracts the values from this launch parameter that are needed to retrieve the document from the Document Repository. It also sets the name of the output file which is derived from the filename passed in as a launch parameter. The filename extension is be replaced with &#x2018;.csv&#x2019;. &#xD;&#xA;&#xD;&#xA;The CopyHeader step demonstrates the use of a streaming XPath expression to extract a portion of a potentially large XML document in order to access some of the values within it. This technique ensures that large documents are handled in a memory-efficient way.&#xD;&#xA;&#xD;&#xA;The splitter ensures that the XSL Transformation is applied to a single employee record at a time. The aggregator combines the output of these transformations into a single document. &#xD;&#xA;&#xD;&#xA;The CombineOutput step demonstrates how a header row is inserted into a document using a streaming XPath expression. Just like the CopyHeader step, this ensures that large documents are handled in a memory-efficient way.&#xD;&#xA;&#xD;&#xA;Finally, the new document is stored in the Document Repository and a link to it is added to the Integration Event by AttachOutputDocument.&#xD;&#xA;"/>
+  <decorations x="57" y="804" width="-1" height="-1" font="Segoe UI|18|1" type="TEXT" text="Error Handler"/>
+  <decorations x="59" y="842" width="-1" height="-1" font="Segoe UI|9|0" type="TEXT" text="This global error handler will catch any unexpected errors and report an error with severity of 'CRITICAL'. This means the integration event will be marked as 'Failed'. "/>
+  <connections type="routesTo" sourceAnchorX="0.9408602150537635" sourceAnchorY="0.1958762886597938" targetAnchorX="0.01744186046511628" targetAnchorY="0.14285714285714285">
+    <source href="assembly.xml#ProcessIndividualEmployee"/>
+    <target href="assembly.xml#AggregateEmployeeOTP"/>
+  </connections>
+  <connections type="routesTo" sourceAnchorX="0.9684873949579832" sourceAnchorY="0.14788732394366197" targetAnchorX="0.0">
+    <source href="assembly.xml#StoreOutput"/>
+    <target href="assembly.xml#AttachOutputDocument"/>
+  </connections>
+  <connections type="routesTo" sourceAnchorX="0.936046511627907" sourceAnchorY="0.17647058823529413" targetAnchorX="0.018907563025210083" targetAnchorY="0.1267605633802817">
+    <source href="assembly.xml#AggregateEmployeeOTP"/>
+    <target href="assembly.xml#StoreOutput"/>
+  </connections>
+  <connections type="routesTo" sourceAnchorX="0.9811320754716981" sourceAnchorY="0.45" targetAnchorX="0.0037128712871287127" targetAnchorY="0.17525773195876287">
+    <source href="assembly.xml#StartHere"/>
+    <target href="assembly.xml#SetupAndRetrieveDocument"/>
+  </connections>
+  <connections type="routesTo" sourceAnchorX="0.9913366336633663" sourceAnchorY="0.6288659793814433" targetAnchorX="0.006944444444444444" targetAnchorY="0.40397350993377484">
+    <source href="assembly.xml#SetupAndRetrieveDocument"/>
+    <target href="assembly.xml#SplitEmployees"/>
+    <bendpoints sourceX="54" targetX="854" targetY="-250"/>
+    <bendpoints sourceX="56" sourceY="126" targetX="856" targetY="-124"/>
+    <bendpoints sourceX="-910" sourceY="126" targetX="-110" targetY="-124"/>
+    <bendpoints sourceX="-910" sourceY="250" targetX="-110"/>
+  </connections>
+  <connections type="routesTo" sourceAnchorX="0.970873786407767" sourceAnchorY="0.425" targetAnchorX="0.11666666666666667" targetAnchorY="0.375">
+    <source href="assembly.xml#//@beans/@mixed.1/@mixed.15"/>
+    <target href="assembly.xml#ReportErrorAsCritical"/>
+  </connections>
+  <connections type="routesTo">
+    <source href="assembly.xml#//@beans/@mixed.1/@splitter.0/@subRoute.0"/>
+    <target href="assembly.xml#ProcessIndividualEmployee"/>
+  </connections>
+</wdnm:Diagram>

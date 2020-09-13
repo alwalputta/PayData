@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans
+     xmlns="http://www.springframework.org/schema/beans"
+     xmlns:beans="http://www.springframework.org/schema/beans"
+     xmlns:apd="urn:com.workday/ti/adppaydata"
+     xmlns:cc="http://www.capeclear.com/assembly/10"
+     xmlns:cloud="urn:com.workday/esb/cloud/10.0"
+     xmlns:env="http://schemas.xmlsoap.org/soap/envelope/"
+     xmlns:pi="urn:com.workday/picof"
+     xmlns:wd="urn:com.workday/bsvc"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+	<cc:assembly id="WorkdayAssembly" version="11.0">
+
+		<cc:workday-in id="StartHere" routes-to="SetupAndRetrieveDocument">
+			<cc:integration-system name="PayData">
+        <cloud:param name="Input Document">
+          <cloud:type>
+            <cloud:class-report-field description="Repository Document" type="WID" singular="false">1265f2f1996d4325b898f2eafc88b589</cloud:class-report-field>
+          </cloud:type>
+          <cloud:launch-option>required</cloud:launch-option>
+        </cloud:param>
+      </cc:integration-system>
+		</cc:workday-in>
+
+		<cc:async-mediation id="SetupAndRetrieveDocument" routes-to="SplitEmployees">
+			<cc:steps>
+				<cc:eval id="RetrieveLaunchParams">
+					<cc:expression>props['input.document.reference'] = lp.getReferenceData('Input Document', 'Document_ID')</cc:expression>
+				</cc:eval>
+				<cc:validate-exp id="ValidateLaunchParams">
+					<cc:expression failure-message="The 'Input Document' launch parameter has not been specified.">props['input.document.reference'] != empty</cc:expression>
+				</cc:validate-exp>
+				<cc:eval id="SetDocumentParams">
+					<cc:expression>props['index.of.separator'] = props['input.document.reference'].indexOf(&quot;/&quot;)</cc:expression>
+					<cc:expression>props['input.document.collection'] = props['input.document.reference'].substring(0, props['index.of.separator'])</cc:expression>
+					<cc:expression>props['input.document.entry'] = props['input.document.reference'].substring(props['index.of.separator'] + 1)</cc:expression>
+					<cc:expression>props['input.document.wids'] = lp.getWIDs('Input Document')</cc:expression>
+					<cc:expression>props['input.document.wid'] = props['input.document.wids'].get(0)</cc:expression>
+					<cc:expression>props['input.document.filename'] = lp.getDescriptor('Input Document', props['input.document.wid'])</cc:expression>
+					<cc:expression>props['index.of.dot'] = props['input.document.filename'].indexOf('.')</cc:expression>
+					<cc:expression>props['output.filename'] =((props['index.of.dot'] == -1)?  props['input.document.filename'] : props['input.document.filename'].substring(0,props['index.of.dot'])) + '.csv'</cc:expression>
+				</cc:eval>
+				<cc:retrieve id="RetrieveInputDocument" output="message" collection="@{props['input.document.collection']}" entry="@{props['input.document.entry']}"/>
+				<cc:copy id="CopyHeader" output="variable" output-variable="input.header" input="message" input-xpath="/pi:Payroll_Extract_Employees/pi:PayGroup/pi:Header" stream-xpath="true"/>
+				<cc:eval id="SetExtractParams">
+					<cc:expression>props['company.id'] = vars['input.header'].xpath('/pi:Header/pi:Payroll_Company_ID')</cc:expression>
+					<cc:expression>props['pay.group.id'] = vars['input.header'].xpath('/pi:Header/pi:Pay_Group_ID')</cc:expression>
+				</cc:eval>
+			</cc:steps>
+		</cc:async-mediation>
+
+		<cc:splitter id="SplitEmployees" no-split-message-error="false">
+			<cc:sub-route name="ProcessEmployee" routes-to="ProcessIndividualEmployee"/>
+			<cc:xml-stream-splitter xpath="/pi:Payroll_Extract_Employees/pi:PayGroup/pi:Employee"/>
+		</cc:splitter>
+
+		<cc:async-mediation id="ProcessIndividualEmployee" routes-to="AggregateEmployeeOTP">
+			<cc:steps>
+				<cc:xslt id="TransformPayData" output-mimetype="text/xml" transformer-factory="net.sf.saxon.TransformerFactoryImpl" url="transformPayData.xsl"/>
+			</cc:steps>
+		</cc:async-mediation>
+
+		<cc:aggregator id="AggregateEmployeeOTP" routes-to="StoreOutput">
+			<cc:size-batch-strategy batch-size="-1"/>
+			<cc:xml-message-content-collater output="message" output-mimetype="text/xml" xpath="/Payments/Payment">
+        <cc:header-text>&lt;PayData>&lt;Header_Fields/></cc:header-text>
+        <cc:footer-text>&lt;/PayData></cc:footer-text>
+      </cc:xml-message-content-collater>
+		</cc:aggregator>
+
+		<cc:async-mediation id="StoreOutput" routes-to="AttachOutputDocument">
+			<cc:steps>
+				<cc:write id="WriteOutputHeader" output="variable" output-mimetype="text/xml" output-variable="header">
+					<cc:message>
+						<cc:text>&lt;?xml version=&quot;1.0&quot; encoding=&quot;UTF-8&quot;?>&#xD;
+&lt;Header_Fields>&#xD;
+    &lt;Field>Company&lt;/Field>&#xD;
+    &lt;Field>Pay Group&lt;/Field>&#xD;
+    &lt;Field>Employee&lt;/Field>&#xD;
+    &lt;Field>Earning Code&lt;/Field>&#xD;
+    &lt;Field>Earning Amount&lt;/Field>&#xD;
+    &lt;Field>Deduction Code&lt;/Field>&#xD;
+    &lt;Field>Deduction Amount&lt;/Field>&#xD;
+&lt;/Header_Fields></cc:text>
+					</cc:message>
+				</cc:write>
+				<cc:copy id="CombineOutput" output="message" output-mimetype="text/xml" input="variable" input-variable="header" input-xpath="/*" output-xpath="/PayData/Header_Fields" stream-xpath="true"/>
+				<cc:xml-to-csv id="XmlToCsv" output="message" output-mimetype="text/plain" input="message" writeHeaderLine="false"/>
+				<cc:store id="StoreOutputDocument" output="variable" output-variable="output.document.reference" input="message" contentDisposition="attachment;filename=&quot;@{props['output.filename']}&quot;" expiresIn="P3M" schema="http://www.w3.org/2005/Atom" summary="PayData Extract" title="@{props['output.filename']}"/>
+			</cc:steps>
+		</cc:async-mediation>
+
+		<cc:local-out id="AttachOutputDocument" endpoint="vm://wcc/PutIntegrationMessage" clone-request="true">
+			<cc:set name="is.message.severity" value="'INFO'"/>
+			<cc:set name="is.document.variable.name" value="'output.document.reference'"/>
+			<cc:set name="is.document.deliverable" value="'true'"/>
+			<cc:set name="is.message.summary" value="'Attached PayData Extract; See Output Files'"/>
+		</cc:local-out>
+
+		<cc:send-error id="CatchErrors" routes-to="ReportErrorAsCritical"/>
+
+		<cc:local-out id="ReportErrorAsCritical" endpoint="vm://wcc/PutIntegrationMessage">
+			<cc:set name="is.message.severity" value="'CRITICAL'"/>
+			<cc:set name="is.message.summary" value="'An unexpected error has occurred while creating the CSV output file: ' + context.errorMessage"/>
+		</cc:local-out>
+
+	</cc:assembly>
+
+</beans>
